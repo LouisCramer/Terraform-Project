@@ -1,0 +1,111 @@
+from flask import Flask, request, jsonify, abort
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import exc, func
+from datetime import datetime
+import os
+
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(50), nullable=False, unique=True)
+    password = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<User {self.name}>'
+
+
+@app.route('/users', methods=['GET'])
+def get_users():
+    users = User.query.all()
+    return jsonify({'users': [user.name for user in users]}), 200
+
+
+@app.route('/users', methods=['POST'])
+def create_user():
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not name or not email or not password:
+        abort(400, 'Name, email and password are required')
+
+    user = User(name=name, email=email, password=password)
+
+    try:
+        db.session.add(user)
+        db.session.commit()
+        return jsonify({'message': f'{user.name} created successfully'}), 201
+
+    except exc.IntegrityError:
+        db.session.rollback()
+        abort(409, f'Email {email} already exists')
+
+
+@app.route('/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    user = User.query.get(user_id)
+
+    if not user:
+        abort(404, f'User {user_id} not found')
+
+    return jsonify({'user': user.name}), 200
+
+
+@app.route('/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    user = User.query.get(user_id)
+
+    if not user:
+        abort(404, f'User {user_id} not found')
+
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not name or not email or not password:
+        abort(400, 'Name, email and password are required')
+
+    user.name = name
+    user.email = email
+    user.password = password
+
+    try:
+        db.session.commit()
+        return jsonify({'message': f'{user.name} updated successfully'}), 200
+
+    except exc.IntegrityError:
+        db.session.rollback()
+        abort(409, f'Email {email} already exists')
+
+
+@app.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    user = User.query.get(user_id)
+
+    if not user:
+        abort(404, f'User {user_id} not found')
+
+    db.session.delete(user)
+    db.session.commit()
+
+    return jsonify({'message': f'{user.name} deleted successfully'}), 200
+
+
+@app.route('/users/count', methods=['GET'])
+def get_users_count():
+    count = db.session.query(func.count(User.id)).scalar()
+    return jsonify({'count': count}), 200
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
