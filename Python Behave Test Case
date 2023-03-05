@@ -1,0 +1,37 @@
+# file: features/steps/webdriverio.py
+
+from behave import given, when, then
+from webdriverio import remote
+
+@given('I have a webdriver.io instance')
+def step_impl(context):
+    context.browser = remote({
+        "desiredCapabilities": {
+            "browserName": "chrome"
+        }
+    })
+    context.browser.init()
+
+@when('I visit the Google home page')
+def step_impl(context):
+    context.browser.url('https://www.google.com')
+
+@then('the page title should be "Google"')
+def step_impl(context):
+    title = context.browser.getTitle()
+    assert title == 'Google', f"Expected title to be 'Google' but got '{title}'"
+
+@then('I can search for "{search_term}"')
+def step_impl(context, search_term):
+    context.browser.setValue("input[name='q']", search_term)
+    context.browser.click("input[type='submit']")
+    context.browser.pause(1000)
+
+@then('the search results should include "{expected_result}"')
+def step_impl(context, expected_result):
+    results = context.browser.getText("#search")
+    assert expected_result in results, f"Expected '{expected_result}' in search results but got '{results}'"
+
+@then('I close the browser')
+def step_impl(context):
+    context.browser.end()
