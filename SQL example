@@ -1,0 +1,60 @@
+# Connect to the SQL database
+$serverName = "localhost"
+$databaseName = "Recruitment"
+$username = "your_username"
+$password = "your_password"
+$connectionString = "Server=$serverName;Database=$databaseName;User ID=$username;Password=$password;Trusted_Connection=False;"
+
+$sqlConnection = New-Object System.Data.SqlClient.SqlConnection
+$sqlConnection.ConnectionString = $connectionString
+$sqlConnection.Open()
+
+# Query to find the top 10 job openings with the highest number of applications
+$query = "SELECT TOP 10 
+            jo.JobTitle, 
+            COUNT(ja.JobApplicationId) AS ApplicationCount
+          FROM 
+            JobOpenings jo
+            INNER JOIN JobApplications ja ON jo.JobOpeningId = ja.JobOpeningId
+          GROUP BY 
+            jo.JobTitle
+          ORDER BY 
+            ApplicationCount DESC;"
+
+# Execute the query and display the results
+$sqlCommand = New-Object System.Data.SqlClient.SqlCommand
+$sqlCommand.Connection = $sqlConnection
+$sqlCommand.CommandText = $query
+
+$dataAdapter = New-Object System.Data.SqlClient.SqlDataAdapter($sqlCommand)
+$dataTable = New-Object System.Data.DataTable
+$dataAdapter.Fill($dataTable)
+
+$dataTable | Format-Table -AutoSize
+
+# Query to find the average number of job applications per candidate
+$query = "SELECT 
+            AVG(ApplicationCount) AS AvgApplicationsPerCandidate
+          FROM 
+            (SELECT 
+              c.CandidateId, 
+              COUNT(ja.JobApplicationId) AS ApplicationCount
+            FROM 
+              Candidates c
+              INNER JOIN JobApplications ja ON c.CandidateId = ja.CandidateId
+            GROUP BY 
+              c.CandidateId) AS Subquery;"
+
+# Execute the query and display the results
+$sqlCommand = New-Object System.Data.SqlClient.SqlCommand
+$sqlCommand.Connection = $sqlConnection
+$sqlCommand.CommandText = $query
+
+$dataAdapter = New-Object System.Data.SqlClient.SqlDataAdapter($sqlCommand)
+$dataTable = New-Object System.Data.DataTable
+$dataAdapter.Fill($dataTable)
+
+$dataTable | Format-Table -AutoSize
+
+# Disconnect from the SQL database
+$sqlConnection.Close()
