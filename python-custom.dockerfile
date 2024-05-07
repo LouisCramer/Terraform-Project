@@ -12,3 +12,5 @@ RUN pythonCode/C-example.py
 EXPOSE 80
 
 CMD ["python3", "-g", "daemon off;"]
+
+end
